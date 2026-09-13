@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SecureBank — Net Banking (TEST TARGET — not a real bank)</title>
+<style>
+  body{font-family:Arial,sans-serif; max-width:640px; margin:40px auto; padding:0 20px; color:#1a1a1a;}
+  .warn{background:#FFF3CD; border:1px solid #E0B800; padding:10px 14px; border-radius:6px; font-size:13px; margin-bottom:20px;}
+  h1{font-size:22px;}
+  table{width:100%; border-collapse:collapse; margin-top:16px;}
+  th,td{text-align:left; padding:10px 8px; border-bottom:1px solid #ddd; font-size:14px;}
+  .status-active{color:#1C7C4A; font-weight:600;}
+  .status-cancelled{color:#999; text-decoration:line-through;}
+  button, .btn{padding:9px 16px; border-radius:6px; border:1px solid #333; background:#fff; cursor:pointer; font-size:13.5px; margin-right:8px;}
+  .btn-primary{background:#1C4B3D; color:#fff; border:none;}
+  .card{border:1px solid #ddd; border-radius:8px; padding:20px; margin-top:16px;}
+  input{padding:8px; border:1px solid #ccc; border-radius:5px; font-size:14px; margin:6px 0;}
+</style>
+</head>
+<body>
+<div class="warn">TEST TARGET SITE — mock bank for hackathon demo only. Not a real bank. No real credentials or money involved.</div>
+<div id="app"></div>
+
+<script>
+/* ---- fake "backend": mandate state lives in localStorage, this IS the bank's database ---- */
+const DEFAULT_MANDATES = [
+  {id:"m1", merchant:"SPOTIFY INDIA", amount:299, frequency:"monthly", status:"active", flow:"retention"},
+  {id:"m2", merchant:"GOOGLE *YouTube Premium", amount:149, frequency:"monthly", status:"active", flow:"simple"},
+  {id:"m3", merchant:"Google Gemini Advanced", amount:1950, frequency:"monthly", status:"active", flow:"simple"},
+  {id:"m4", merchant:"LIC OF INDIA PREMIUM", amount:12500, frequency:"annually", status:"active", flow:"simple"},
+  {id:"m5", merchant:"GROWW SIP - NIFTY 50 INDEX", amount:5000, frequency:"monthly", status:"active", flow:"simple"},
+  {id:"m6", merchant:"ICICI PRU LIFE INS PREM", amount:8200, frequency:"annually", status:"active", flow:"simple"},
+  {id:"m7", merchant:"HDFC BANK EMI - PERSONAL LOAN", amount:6750, frequency:"monthly", status:"active", flow:"simple"},
+  {id:"m8", merchant:"BESCOM ELECTRICITY AUTOPAY", amount:1400, frequency:"monthly", status:"active", flow:"simple"},
+  {id:"m9", merchant:"HDFC", amount:2500, frequency:"monthly", status:"active", flow:"simple"},
+  {id:"m10", merchant:"Netflix Premium 4K Family Plan", amount:6499, frequency:"monthly", status:"active", flow:"otp"},
+];
+
+function loadMandates(){
+  const raw = localStorage.getItem("bank_mandates");
+  if(!raw){ localStorage.setItem("bank_mandates", JSON.stringify(DEFAULT_MANDATES)); return DEFAULT_MANDATES; }
+  return JSON.parse(raw);
+}
+function saveMandates(list){ localStorage.setItem("bank_mandates", JSON.stringify(list)); }
+function getMandate(id){ return loadMandates().find(m=>m.id===id); }
+function setStatus(id, status){
+  const list = loadMandates();
+  const m = list.find(x=>x.id===id);
+  if(m) m.status = status;
+  saveMandates(list);
+}
+
+const params = new URLSearchParams(location.search);
+const page = params.get("page") || "mandates";
+const id = params.get("id");
+const app = document.getElementById("app");
+
+function nav(page, id){
+  location.href = "?page="+page + (id ? "&id="+id : "");
+}
+
+if(page === "mandates"){
+  const mandates = loadMandates();
+  app.innerHTML = `
+    <h1>Manage UPI Autopay / Mandates</h1>
+    <table>
+      <tr><th>Merchant</th><th>Amount</th><th>Frequency</th><th>Status</th><th></th></tr>
+      ${mandates.map(m=>`
+        <tr data-id="${m.id}">
+          <td>${m.merchant}</td>
+          <td>₹${m.amount.toLocaleString('en-IN')}</td>
+          <td>${m.frequency}</td>
+          <td class="status-${m.status}">${m.status}</td>
+          <td>${m.status==="active" ? `<a class="btn" href="?page=manage&id=${m.id}">Manage</a>` : "—"}</td>
+        </tr>`).join("")}
+    </table>
+  `;
+}
+
+else if(page === "manage"){
+  const m = getMandate(id);
+  app.innerHTML = `
+    <h1>${m.merchant}</h1>
+    <div class="card">
+      <p><b>Amount:</b> ₹${m.amount.toLocaleString('en-IN')} / ${m.frequency}</p>
+      <p><b>Status:</b> <span class="status-${m.status}">${m.status}</span></p>
+      ${m.status==="active" ? `<button class="btn-primary" onclick="location.href='?page=cancel_start&id=${m.id}'">Cancel autopay</button>` : `<p>This mandate has been cancelled.</p>`}
+      <a class="btn" href="?page=mandates" style="display:inline-block;margin-top:10px;">Back to mandates</a>
+    </div>
+  `;
+}
+
+else if(page === "cancel_start"){
+  const m = getMandate(id);
+  if(m.flow === "retention") nav("retention", id);
+  else if(m.flow === "otp") nav("otp", id);
+  else nav("confirm", id);
+}
+
+else if(page === "retention"){
+  const m = getMandate(id);
+  app.innerHTML = `
+    <h1>Wait — before you go</h1>
+    <div class="card">
+      <p>We'd hate to see you cancel <b>${m.merchant}</b>. Get <b>3 months free</b> if you stay.</p>
+      <button class="btn-primary" onclick="location.href='?page=manage&id=${m.id}'">Accept offer, keep autopay</button>
+      <button class="btn" onclick="location.href='?page=confirm&id=${m.id}'">No thanks, cancel anyway</button>
+    </div>
+  `;
+}
+
+else if(page === "otp"){
+  const m = getMandate(id);
+  app.innerHTML = `
+    <h1>Verify it's you</h1>
+    <div class="card">
+      <p>Enter the 6-digit code sent to your registered mobile to continue cancelling <b>${m.merchant}</b>.</p>
+      <input id="otp-input" maxlength="6" placeholder="OTP" style="width:120px; text-align:center; font-size:16px;">
+      <br>
+      <button class="btn-primary" onclick="if(document.getElementById('otp-input').value.length===6){location.href='?page=confirm&id=${m.id}'}else{alert('Enter 6 digits (demo accepts any code)')}">Verify</button>
+    </div>
+  `;
+}
+
+else if(page === "confirm"){
+  const m = getMandate(id);
+  app.innerHTML = `
+    <h1>Confirm cancellation</h1>
+    <div class="card">
+      <p>Are you sure you want to cancel autopay for <b>${m.merchant}</b> (₹${m.amount.toLocaleString('en-IN')}/${m.frequency})?</p>
+      <button class="btn-primary" onclick="location.href='?page=success&id=${m.id}'">Yes, cancel</button>
+      <button class="btn" onclick="location.href='?page=manage&id=${m.id}'">No, go back</button>
+    </div>
+  `;
+}
+
+else if(page === "success"){
+  setStatus(id, "cancelled");
+  const m = getMandate(id);
+  app.innerHTML = `
+    <h1>Autopay cancelled</h1>
+    <div class="card">
+      <p>✓ ${m.merchant} has been cancelled. No further debits will occur.</p>
+      <a class="btn" href="?page=mandates">Back to mandates</a>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>
