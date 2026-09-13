@@ -423,11 +423,22 @@ def index():
 # Automatic Browser Startup in Background
 @app.on_event("startup")
 def on_startup():
+    logger.info("Mandate CFO Server Started")
+
+    # Only launch browser locally
+    if os.getenv("RAILWAY_ENVIRONMENT"):
+        logger.info("Railway detected - skipping browser startup")
+        return
+
     def _start_browser():
         time.sleep(1.5)
         try:
-            logger.info("[STARTUP] Opening Mandate Personal CFO Dashboard in unified browser session...")
-            session_manager.get_or_create_dashboard_page(DASHBOARD_URL, headless=False, demo_mode=True)
+            logger.info("[STARTUP] Opening Mandate Personal CFO Dashboard...")
+            session_manager.get_or_create_dashboard_page(
+                DASHBOARD_URL,
+                headless=False,
+                demo_mode=True
+            )
         except Exception as e:
             logger.warning(f"[STARTUP] Could not open initial browser page: {e}")
 
