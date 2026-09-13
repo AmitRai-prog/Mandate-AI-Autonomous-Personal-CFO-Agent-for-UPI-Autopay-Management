@@ -443,3 +443,11 @@ def on_startup():
             logger.warning(f"[STARTUP] Could not open initial browser page: {e}")
 
     threading.Thread(target=_start_browser, daemon=True).start()
+
+port = int(os.environ.get("PORT", 8000))
+
+uvicorn.run(
+    app,
+    host="0.0.0.0",
+    port=port
+)
