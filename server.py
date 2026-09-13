@@ -451,3 +451,8 @@ uvicorn.run(
     host="0.0.0.0",
     port=port
 )
+@app.get("/")
+def root():
+    return {
+        "message": "Mandate CFO is running"
+    }
