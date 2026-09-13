@@ -444,15 +444,4 @@ def on_startup():
 
     threading.Thread(target=_start_browser, daemon=True).start()
 
-port = int(os.environ.get("PORT", 8000))
 
-uvicorn.run(
-    app,
-    host="0.0.0.0",
-    port=port
-)
-@app.get("/")
-def root():
-    return {
-        "message": "Mandate CFO is running"
-    }
